@@ -104,6 +104,13 @@ begin
  return new;
 end; $$;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path=public
+as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin') $$;
+revoke all on function public.is_admin() from public, anon, authenticated;
+grant execute on function public.is_admin() to authenticated;
 
 -- Enable RLS everywhere.
 do $$ declare t text; begin foreach t in array array['profiles','farms','farm_activities','crop_calendars','farm_machinery','farm_workers','products','inventory_locations','inventory_items','stock_movements','orders','payment_records','reversal_reports','refund_records','delivery_records','verification_submissions','saved_products','messages','notifications','reviews','activities'] loop execute format('alter table public.%I enable row level security',t); end loop; end $$;
@@ -120,7 +127,22 @@ create policy "workers owner" on public.farm_workers for all using(auth.uid()=ow
 create policy "active products public" on public.products for select using(status='active' or auth.uid()=seller_id);
 create policy "product seller insert" on public.products for insert with check(auth.uid()=seller_id);
 create policy "product seller update" on public.products for update using(auth.uid()=seller_id and status not in ('paused','removed')) with check(auth.uid()=seller_id and status not in ('paused','removed'));
-create policy "product seller delete" on public.products for delete using(auth.uid()=seller_id);
+create or replace function public.protect_product_moderation_status() returns trigger
+language plpgsql security definer set search_path=public
+as $$
+begin
+ if auth.uid() is not null
+   and new.status is distinct from old.status
+   and (old.status in ('paused','removed') or new.status in ('paused','removed'))
+   and not public.is_admin() then
+   raise exception 'Product moderation status is administrator controlled';
+ end if;
+ return new;
+end; $$;
+revoke all on function public.protect_product_moderation_status() from public, anon, authenticated;
+drop trigger if exists protect_product_moderation_status on public.products;
+create trigger protect_product_moderation_status before update of status on public.products
+for each row execute function public.protect_product_moderation_status();
 create policy "inventory locations owner" on public.inventory_locations for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
 create policy "inventory items owner" on public.inventory_items for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
 create policy "stock movements owner" on public.stock_movements for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);

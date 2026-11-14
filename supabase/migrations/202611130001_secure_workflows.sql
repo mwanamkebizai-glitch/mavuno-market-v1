@@ -4,6 +4,9 @@
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path=public
 as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin') $$;
+revoke all on function public.is_admin() from public, anon, authenticated;
+grant execute on function public.is_admin() to authenticated;
+revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 -- Prevent public profile updates from changing privilege or verification fields.
 create or replace function public.protect_profile_privileges() returns trigger
@@ -92,7 +95,7 @@ begin
     order_id:=v_order; seller_id:=v_product.seller_id; product_id:=v_product.id; total_amount:=v_total; return next;
   end loop;
 end; $$;
-revoke all on function public.checkout_cart(jsonb,text,text,text,text) from public;
+revoke all on function public.checkout_cart(jsonb,text,text,text,text) from public, anon, authenticated;
 grant execute on function public.checkout_cart(jsonb,text,text,text,text) to authenticated;
 
 -- Seller-only order transitions. Stock is reserved at checkout; cancellation restores it once.
@@ -121,7 +124,7 @@ begin
   update public.delivery_records set status=case when p_status='dispatched' then 'dispatched' when p_status='delivered' then 'delivered' when p_status='ready_for_collection' then 'ready_for_collection' when p_status='completed' then 'completed' when p_status='cancelled' then 'cancelled' else status end where order_id=p_order_id;
   perform public.notify_user(o.buyer_id,'Order updated','Seller updated your order to '||replace(p_status::text,'_',' ')||'.','/orders/'||p_order_id);
 end; $$;
-revoke all on function public.seller_update_order(uuid,public.order_status,text) from public;
+revoke all on function public.seller_update_order(uuid,public.order_status,text) from public, anon, authenticated;
 grant execute on function public.seller_update_order(uuid,public.order_status,text) to authenticated;
 
 create or replace function public.report_direct_payment(p_order_id uuid,p_method text,p_reference text,p_amount numeric,p_notes text default null)
@@ -137,7 +140,7 @@ begin
   perform public.notify_user(o.seller_id,'Payment reported','Buyer submitted payment evidence. Review and confirm only if received.','/orders/'||p_order_id);
   return v_id;
 end; $$;
-revoke all on function public.report_direct_payment(uuid,text,text,numeric,text) from public;
+revoke all on function public.report_direct_payment(uuid,text,text,numeric,text) from public, anon, authenticated;
 grant execute on function public.report_direct_payment(uuid,text,text,numeric,text) to authenticated;
 
 create or replace function public.confirm_direct_payment(p_order_id uuid,p_response text default null)
@@ -152,7 +155,7 @@ begin
   update public.orders set payment_status='seller_confirmed',updated_at=now() where id=p_order_id;
   perform public.notify_user(o.buyer_id,'Payment confirmed','Seller confirmed the payment evidence you submitted.','/orders/'||p_order_id);
 end; $$;
-revoke all on function public.confirm_direct_payment(uuid,text) from public;
+revoke all on function public.confirm_direct_payment(uuid,text) from public, anon, authenticated;
 grant execute on function public.confirm_direct_payment(uuid,text) to authenticated;
 
 create or replace function public.adjust_inventory(p_item_id uuid,p_delta numeric,p_movement_type text,p_notes text default null)
@@ -171,7 +174,7 @@ begin
   if v_new<=i.reorder_level then perform public.notify_user(auth.uid(),'Low stock alert',i.name||' has reached its reorder level.','/inventory'); end if;
   return v_new;
 end; $$;
-revoke all on function public.adjust_inventory(uuid,numeric,text,text) from public;
+revoke all on function public.adjust_inventory(uuid,numeric,text,text) from public, anon, authenticated;
 grant execute on function public.adjust_inventory(uuid,numeric,text,text) to authenticated;
 
 create or replace function public.admin_review_verification(p_submission_id uuid,p_status text,p_notes text default null)
@@ -186,7 +189,7 @@ begin
   elsif p_status='rejected' then update public.profiles set verification_status='rejected' where id=v_user; end if;
   perform public.notify_user(v_user,'Verification reviewed','Your verification submission status is: '||replace(p_status,'_',' '),'/verification');
 end; $$;
-revoke all on function public.admin_review_verification(uuid,text,text) from public;
+revoke all on function public.admin_review_verification(uuid,text,text) from public, anon, authenticated;
 grant execute on function public.admin_review_verification(uuid,text,text) to authenticated;
 
 -- Admin visibility for operational queues.
@@ -256,10 +259,27 @@ drop trigger if exists validate_product_seller_role on public.products;
 create trigger validate_product_seller_role before insert or update of seller_id on public.products
 for each row execute function public.validate_product_seller_role();
 
+create or replace function public.protect_product_moderation_status() returns trigger
+language plpgsql security definer set search_path=public
+as $$
+begin
+  if auth.uid() is not null
+    and new.status is distinct from old.status
+    and (old.status in ('paused','removed') or new.status in ('paused','removed'))
+    and not public.is_admin() then
+    raise exception 'Product moderation status is administrator controlled';
+  end if;
+  return new;
+end; $$;
+drop trigger if exists protect_product_moderation_status on public.products;
+create trigger protect_product_moderation_status before update of status on public.products
+for each row execute function public.protect_product_moderation_status();
+
 drop policy if exists "product seller update" on public.products;
 create policy "product seller update" on public.products for update
 using(auth.uid()=seller_id and status not in ('paused','removed'))
 with check(auth.uid()=seller_id and status not in ('paused','removed'));
+drop policy if exists "product seller delete" on public.products;
 
 drop policy if exists "payment parties insert" on public.payment_records;
 -- Payment reports must use report_direct_payment; seller confirmation must use confirm_direct_payment.
@@ -281,7 +301,7 @@ begin
   if v_seller is null then raise exception 'Product not found'; end if;
   perform public.notify_user(v_seller,'Listing reviewed','An administrator changed your listing status to '||p_status::text||coalesce(': '||p_note,''),'/products');
 end; $$;
-revoke all on function public.admin_moderate_product(uuid,public.product_status,text) from public;
+revoke all on function public.admin_moderate_product(uuid,public.product_status,text) from public, anon, authenticated;
 grant execute on function public.admin_moderate_product(uuid,public.product_status,text) to authenticated;
 
 create or replace function public.request_refund(p_order_id uuid,p_reason text,p_amount numeric)
@@ -297,7 +317,7 @@ begin
   perform public.notify_user(o.seller_id,'Refund request submitted','Buyer requested a direct-payment refund review for this order.','/orders/'||p_order_id);
   return v_id;
 end; $$;
-revoke all on function public.request_refund(uuid,text,numeric) from public;
+revoke all on function public.request_refund(uuid,text,numeric) from public, anon, authenticated;
 grant execute on function public.request_refund(uuid,text,numeric) to authenticated;
 
 create or replace function public.admin_resolve_refund(p_refund_id uuid,p_status text,p_notes text)
@@ -312,7 +332,7 @@ begin
   perform public.notify_user(v_buyer,'Refund request reviewed','Administrator recorded refund status: '||p_status,'/orders/'||v_order);
   perform public.notify_user(v_seller,'Refund request reviewed','Administrator recorded refund status: '||p_status,'/orders/'||v_order);
 end; $$;
-revoke all on function public.admin_resolve_refund(uuid,text,text) from public;
+revoke all on function public.admin_resolve_refund(uuid,text,text) from public, anon, authenticated;
 grant execute on function public.admin_resolve_refund(uuid,text,text) to authenticated;
 
 drop policy if exists "admin inventory read" on public.inventory_items;
@@ -345,7 +365,7 @@ begin
   perform public.notify_user(o.seller_id,'Payment reversal reported','Buyer submitted a reversal reference. Please check your own payment records.','/orders/'||p_order_id);
   return v_id;
 end; $$;
-revoke all on function public.report_payment_reversal(uuid,text,numeric,text) from public;
+revoke all on function public.report_payment_reversal(uuid,text,numeric,text) from public, anon, authenticated;
 grant execute on function public.report_payment_reversal(uuid,text,numeric,text) to authenticated;
 
 create or replace function public.respond_payment_reversal(p_report_id uuid,p_confirmed boolean,p_response text)
@@ -361,7 +381,7 @@ begin
   update public.orders set payment_status=case when p_confirmed then 'reversed'::public.payment_status else 'disputed'::public.payment_status end,updated_at=now() where id=o.id;
   perform public.notify_user(o.buyer_id,'Reversal report reviewed',case when p_confirmed then 'Seller confirmed the reversal evidence.' else 'Seller disputes the reversal evidence.' end,'/orders/'||o.id);
 end; $$;
-revoke all on function public.respond_payment_reversal(uuid,boolean,text) from public;
+revoke all on function public.respond_payment_reversal(uuid,boolean,text) from public, anon, authenticated;
 grant execute on function public.respond_payment_reversal(uuid,boolean,text) to authenticated;
 
 -- Tighten remaining write paths so users cannot forge an already-reviewed state.
@@ -418,6 +438,15 @@ drop trigger if exists validate_inventory_location_owner on public.inventory_ite
 create trigger validate_inventory_location_owner before insert or update of location_id,owner_id on public.inventory_items
 for each row execute function public.validate_farm_and_inventory_links();
 
+revoke all on function public.protect_profile_privileges() from public, anon, authenticated;
+revoke all on function public.on_order_created_notify() from public, anon, authenticated;
+revoke all on function public.on_message_notify() from public, anon, authenticated;
+revoke all on function public.on_review_notify() from public, anon, authenticated;
+revoke all on function public.validate_product_seller_role() from public, anon, authenticated;
+revoke all on function public.protect_product_moderation_status() from public, anon, authenticated;
+revoke all on function public.validate_inventory_owner_role() from public, anon, authenticated;
+revoke all on function public.validate_farm_and_inventory_links() from public, anon, authenticated;
+
 -- Explicit Data API permissions for projects with automatic table exposure disabled.
 revoke all privileges on table
   public.profiles, public.farms, public.farm_activities, public.crop_calendars,
@@ -435,8 +464,11 @@ grant select on public.products, public.reviews to anon;
 grant select, update on public.profiles to authenticated;
 grant select, insert, update, delete on
   public.farms, public.farm_activities, public.crop_calendars, public.farm_machinery, public.farm_workers,
-  public.products, public.inventory_locations
+  public.inventory_locations
 to authenticated;
+grant select, insert on public.products to authenticated;
+grant update(name, description, category, price, quantity, unit, location, county, sub_county, town, is_preharvest, expected_harvest_date, image_paths, farm_id)
+  on public.products to authenticated;
 grant select, insert on public.inventory_items, public.verification_submissions to authenticated;
 grant select, insert, update, delete on public.saved_products to authenticated;
 grant select, insert on public.messages, public.reviews to authenticated;

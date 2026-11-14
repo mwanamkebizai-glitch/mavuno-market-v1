@@ -71,6 +71,27 @@ test('seller updates cannot override administrator product moderation', () => {
   const end=migration.indexOf('revoke all on function public.seller_update_order',start);
   const sellerUpdate=migration.slice(start,end);
   assert.match(sellerUpdate,/status=case when status in \('paused','removed'\) then status else 'active'::public\.product_status end/i);
+  assert.match(schema,/create trigger protect_product_moderation_status before update of status on public\.products/i);
+  assert.match(migration,/create trigger protect_product_moderation_status before update of status on public\.products/i);
+  assert.match(migration,/new\.status is distinct from old\.status[\s\S]*old\.status in \('paused','removed'\)[\s\S]*new\.status in \('paused','removed'\)[\s\S]*not public\.is_admin\(\)/i);
+  const productUpdateGrant=migration.match(/grant update\(([^)]+)\)\s+on public\.products to authenticated/i);
+  assert.ok(productUpdateGrant);
+  assert.doesNotMatch(productUpdateGrant[1],/\bstatus\b/i);
+  assert.match(migration,/drop policy if exists "product seller delete" on public\.products/i);
+  assert.doesNotMatch(migration,/grant select,\s*insert,\s*delete on public\.products to authenticated/i);
+});
+
+test('security-definer helpers and workflow RPCs have explicit execution grants', () => {
+  const schema=fs.readFileSync(path.join(root,'supabase/schema.sql'),'utf8');
+  const migration=fs.readFileSync(path.join(root,'supabase/migrations/202611130001_secure_workflows.sql'),'utf8');
+  assert.match(schema,/revoke all on function public\.handle_new_user\(\) from public, anon, authenticated/i);
+  assert.match(migration,/revoke all on function public\.is_admin\(\) from public, anon, authenticated[\s\S]*grant execute on function public\.is_admin\(\) to authenticated/i);
+  const lowered=migration.toLowerCase();
+  for(const name of ['protect_profile_privileges','on_order_created_notify','on_message_notify','on_review_notify','validate_product_seller_role','protect_product_moderation_status','validate_inventory_owner_role','validate_farm_and_inventory_links']){
+    assert.ok(lowered.includes(`revoke all on function public.${name}() from public, anon, authenticated`),`Client EXECUTE privilege not revoked from ${name}`);
+  }
+  assert.match(migration,/revoke all on function public\.admin_moderate_product\(uuid,public\.product_status,text\) from public, anon, authenticated/i);
+  assert.match(migration,/grant execute on function public\.admin_moderate_product\(uuid,public\.product_status,text\) to authenticated/i);
 });
 
 test('every migration policy can be safely recreated', () => {
@@ -110,4 +131,43 @@ test('Data API grants remain explicit and protected records are RPC-only', () =>
   assert.match(sql,/revoke insert,update,delete on public\.reversal_reports from authenticated/i);
   assert.match(sql,/revoke insert,update,delete on public\.refund_records from authenticated/i);
   assert.match(sql,/grant select on[\s\S]*public\.reversal_reports,[\s\S]*public\.refund_records[\s\S]*to authenticated/i);
+});
+
+test('role-based PostgreSQL security tests use JWT claims and roll back fixtures', () => {
+  const sql=fs.readFileSync(path.join(root,'supabase/tests/security_workflows.sql'),'utf8');
+  for(const token of [
+    'set local role authenticated',
+    'request.jwt.claims',
+    'mavuno.test.seller_a',
+    'mavuno.test.seller_b',
+    'mavuno.test.buyer_a',
+    'mavuno.test.buyer_b',
+    'mavuno.test.admin',
+    'public.checkout_cart',
+    'public.report_direct_payment',
+    'public.confirm_direct_payment',
+    'public.request_refund',
+    'public.report_payment_reversal',
+    'public.respond_payment_reversal',
+    'public.admin_moderate_product',
+    'public.admin_review_verification',
+    'public.admin_resolve_refund',
+    'public.adjust_inventory',
+    'Cancellation preserves paused status',
+    'Cancellation preserves removed status',
+    'rollback;'
+  ]) assert.ok(sql.toLowerCase().includes(token.toLowerCase()),`Missing PostgreSQL security scenario: ${token}`);
+});
+
+test('admin role remains owner-provisioned and browser clients use only public keys', () => {
+  const schema=fs.readFileSync(path.join(root,'supabase/schema.sql'),'utf8');
+  const clientFiles=[
+    fs.readFileSync(path.join(root,'lib/supabase/client.ts'),'utf8'),
+    fs.readFileSync(path.join(root,'lib/supabase/server.ts'),'utf8'),
+    fs.readFileSync(path.join(root,'proxy.ts'),'utf8')
+  ].join('\n');
+  assert.match(schema,/if r='admin' then r := 'buyer_individual'/i);
+  assert.match(clientFiles,/NEXT_PUBLIC_SUPABASE_URL/);
+  assert.match(clientFiles,/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+  assert.doesNotMatch(clientFiles,/SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
