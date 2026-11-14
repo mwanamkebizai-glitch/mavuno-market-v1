@@ -1,6 +1,6 @@
 # Mavuno Market V1 — source package
 
-Mavuno Market is a Kenyan agriculture marketplace with Farmer, Agri-Vet Supplier and Buyer accounts. It uses Next.js 14, TypeScript, Supabase Auth/Postgres and Vercel-compatible deployment configuration.
+Mavuno Market is a Kenyan agriculture marketplace with Farmer, Agri-Vet Supplier and Buyer accounts. It uses Next.js 16, TypeScript, Supabase Auth/Postgres and Vercel-compatible deployment configuration.
 
 ## Important scope and payment rules
 
@@ -34,7 +34,7 @@ The current app is a V1 functional foundation, not a finished enterprise product
 
 ## Setup
 
-1. Install Node.js 20 LTS or newer and Git.
+1. Install Node.js 20.9 or newer and Git.
 2. Extract the ZIP and open the folder in VS Code.
 3. Run `npm install`.
 4. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for your Supabase project.

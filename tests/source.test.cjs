@@ -59,3 +59,12 @@ test('client checkout uses the protected database RPC and payment rules stay man
   assert.doesNotMatch(order,/from\("refund_records"\)\.insert/);
   assert.doesNotMatch(cart,/from\("orders"\)\.insert/);
 });
+
+test('seller updates cannot override administrator product moderation', () => {
+  const schema=fs.readFileSync(path.join(root,'supabase/schema.sql'),'utf8');
+  const migration=fs.readFileSync(path.join(root,'supabase/migrations/202611130001_secure_workflows.sql'),'utf8');
+  const policy=/create policy "product seller update" on public\.products for update[\s\S]*?using\(auth\.uid\(\)=seller_id and status not in \('paused','removed'\)\)[\s\S]*?with check\(auth\.uid\(\)=seller_id and status not in \('paused','removed'\)\)/i;
+  assert.match(schema,policy);
+  assert.match(migration,/drop policy if exists "product seller update" on public\.products/i);
+  assert.match(migration,policy);
+});

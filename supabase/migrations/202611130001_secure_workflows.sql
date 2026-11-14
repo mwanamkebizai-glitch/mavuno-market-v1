@@ -237,6 +237,11 @@ drop trigger if exists validate_product_seller_role on public.products;
 create trigger validate_product_seller_role before insert or update of seller_id on public.products
 for each row execute function public.validate_product_seller_role();
 
+drop policy if exists "product seller update" on public.products;
+create policy "product seller update" on public.products for update
+using(auth.uid()=seller_id and status not in ('paused','removed'))
+with check(auth.uid()=seller_id and status not in ('paused','removed'));
+
 drop policy if exists "payment parties insert" on public.payment_records;
 -- Payment reports must use report_direct_payment; seller confirmation must use confirm_direct_payment.
 revoke insert,update,delete on public.payment_records from authenticated;

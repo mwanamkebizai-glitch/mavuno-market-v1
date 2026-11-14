@@ -1,7 +1,8 @@
 import Nav from "@/components/Nav";import {createClient} from "@/lib/supabase/server";import ReceiptActions,{type ReceiptData} from "@/components/ReceiptActions";
-export default async function ReceiptPage({params}:{params:{id:string}}){
+export default async function ReceiptPage({params}:{params:Promise<{id:string}>}){
+ const {id}=await params;
  const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return <main className="container" style={{padding:40}}>Please sign in.</main>;
- const {data:o}=await s.from("orders").select("*,products(name),buyer:profiles!orders_buyer_id_fkey(full_name),seller:profiles!orders_seller_id_fkey(full_name),payment_records(*)").eq("id",params.id).single();
+ const {data:o}=await s.from("orders").select("*,products(name),buyer:profiles!orders_buyer_id_fkey(full_name),seller:profiles!orders_seller_id_fkey(full_name),payment_records(*)").eq("id",id).single();
  if(!o||(o.buyer_id!==user.id&&o.seller_id!==user.id))return <main className="container" style={{padding:40}}>Receipt not found or access denied.</main>;
  const status=o.payment_status==="seller_confirmed"?"Seller confirmed":o.payment_status;
  const receipt:ReceiptData={receiptNo:`MM-${o.id.slice(0,8).toUpperCase()}`,orderId:o.id,date:new Date(o.created_at).toLocaleString(),buyer:o.buyer?.full_name||"Buyer",seller:o.seller?.full_name||"Seller",items:[{name:o.products?.name||"Product",qty:Number(o.quantity),unitPrice:Number(o.unit_price),total:Number(o.total_amount)}],total:Number(o.total_amount),paymentMethod:o.payment_method||"Direct arrangement",paymentReference:o.payment_records?.[0]?.reference||"",paymentStatus:status};

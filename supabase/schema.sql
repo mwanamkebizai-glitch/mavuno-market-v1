@@ -119,7 +119,7 @@ create policy "machinery owner" on public.farm_machinery for all using(auth.uid(
 create policy "workers owner" on public.farm_workers for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
 create policy "active products public" on public.products for select using(status='active' or auth.uid()=seller_id);
 create policy "product seller insert" on public.products for insert with check(auth.uid()=seller_id);
-create policy "product seller update" on public.products for update using(auth.uid()=seller_id) with check(auth.uid()=seller_id);
+create policy "product seller update" on public.products for update using(auth.uid()=seller_id and status not in ('paused','removed')) with check(auth.uid()=seller_id and status not in ('paused','removed'));
 create policy "product seller delete" on public.products for delete using(auth.uid()=seller_id);
 create policy "inventory locations owner" on public.inventory_locations for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
 create policy "inventory items owner" on public.inventory_items for all using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
