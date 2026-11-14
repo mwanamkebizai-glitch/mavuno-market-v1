@@ -40,19 +40,19 @@ Run date: 14 November 2026
 
 ### Cloud setup status and blocked checks
 
-- Supabase project `mavuno-market` exists in Frankfurt and was previously shown as Healthy. A previous read-only inventory returned zero public base tables.
-- The SQL editor did not provide a verifiable result for the schema execution attempt. After refresh, the editor reported that the query snippet no longer existed and opened a blank query. **Whether the base schema or migration has been applied is unverified.** Do not rerun either script until a fresh read-only inventory confirms the current state.
-- The Supabase dashboard showed intermittent 404/resource errors and authentication-lock warnings during this session. No post-apply table, RLS, or grant inventory was obtained.
+- Supabase project `mavuno-market` exists in Frankfurt and was previously shown as Healthy. A fresh read-only inventory returned **21 public base tables**, matching the application's base schema table count; the database is not empty.
+- This confirms the table objects exist, but does not independently prove which script created them. The secure-workflows migration, RLS policies, and grants are **not yet verified**. Do not rerun either script until those objects are inspected read-only.
+- The Supabase dashboard showed intermittent 404/resource errors and authentication-lock warnings during this session. No RLS, function, or grant inventory was obtained.
 - Both required local Supabase environment entries still match the placeholders in `.env.example`; their values are intentionally not recorded here.
-- GitHub `main` contains commit `1bef4d8` (`Add explicit Supabase data permissions`). Vercel has not imported the repository, no Vercel project/deployment is verified, and no Vercel environment values are configured.
+- GitHub `main` contains the explicit Data API permissions and protected RPC updates. Vercel has not imported the repository, no Vercel project/deployment is verified, and no Vercel environment values are configured.
 
-- PostgreSQL schema/migration execution: **NOT VERIFIED** — the project exists, but the dashboard did not return a result that proves application.
-- Supabase live RLS and role-based tests: **NOT RUN** — the project does not have confirmed schema state or configured application credentials.
-- Role-based browser end-to-end tests: **NOT RUN** — there are no configured real accounts or live database.
+- PostgreSQL base tables: **CONFIRMED PRESENT** — 21 public base tables were returned. Secure-workflows migration/RLS/grant state: **NOT VERIFIED**.
+- Supabase live RLS tests: **NOT RUN** — the secure-workflows migration, policies, and grants have not been verified; application credentials remain placeholders.
+- Role-based browser end-to-end tests: **NOT RUN** — no real role-based accounts or configured application environment are available.
 
 ## Remaining blockers before production launch
 
-- Verify the live schema using a fresh read-only inventory; only apply the base schema if the inventory proves the database is empty, then apply the secure-workflows migration once.
+- Do not reapply the base schema: 21 public base tables are present. Verify the secure-workflows functions, RLS policies, and grants with read-only queries before deciding whether any migration is needed.
 - Configure the required Supabase URL and anon/publishable key privately in local and Vercel settings; never use a service-role key in the client.
 - Import the repository into Vercel and configure Supabase Auth site/redirect URLs after the Vercel domain is available.
 - Role-based end-to-end tests must pass for farmer, supplier, buyer and admin flows.
@@ -61,4 +61,4 @@ Run date: 14 November 2026
 
 ## Status
 
-The source tests, typecheck, production build, and npm audit pass; the audit retry reported 0 vulnerabilities. This project is not production-ready: the live schema state is unverified, Supabase environment values remain placeholders, Vercel is not configured, and role-based end-to-end tests have not been performed.
+The source tests, typecheck, production build, and npm audit pass; the audit retry reported 0 vulnerabilities. The base tables are present, but secure-workflow/RLS/grant state is unverified. This project is not production-ready: Supabase environment values remain placeholders, Vercel is not configured, and role-based end-to-end tests have not been performed.
