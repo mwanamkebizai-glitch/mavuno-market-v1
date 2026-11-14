@@ -10,7 +10,8 @@ Status date: 14 November 2026
 
 - Existing GitHub repository: `mwanamkebizai-glitch/mavuno-market-v1`, branch `main`.
 - Starting GitHub head verified before this preparation: `0b9867115f53cb5f606457dd52c6adfe9909ac71`.
-- Local changes preserve existing project data; `.env.local` is ignored and was not read.
+- The prepared source, tests, and setup documents were pushed and verified in commit `6df6f04b66a9accfc3be35ef8574aa8d9b8b6536`; `origin/main` matched the local head after the push.
+- Prepared changes preserve existing project data; `.env.local` is ignored and was not read.
 - Seller cancellation preserves administrator-paused/removed product state. Direct seller product UPDATE grants exclude `status`; a trigger independently blocks moderation transitions, and direct seller product deletion is removed.
 - Migration policy creation is rerunnable using guarded policy drops. Protected workflow functions have explicit EXECUTE grants; trigger functions are not client-callable.
 - Added `supabase/tests/security_workflows.sql` with 43 transactional pgTAP assertions using `authenticated` role/JWT claims and dedicated Farmer, Supplier, Buyer A/B, and owner-provisioned Admin fixtures.
