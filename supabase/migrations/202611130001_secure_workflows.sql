@@ -111,7 +111,11 @@ begin
   if p_status='dispatched' and (select fulfilment_method from public.orders where id=p_order_id)<>'delivery' then raise exception 'Collection orders cannot be dispatched'; end if;
   if p_status='ready_for_collection' and o.fulfilment_method<>'collection' then raise exception 'This is not a collection order'; end if;
   if p_status='cancelled' then
-    update public.products set quantity=quantity+o.quantity,status='active',updated_at=now() where id=o.product_id;
+    update public.products
+    set quantity=quantity+o.quantity,
+        status=case when status in ('paused','removed') then status else 'active'::public.product_status end,
+        updated_at=now()
+    where id=o.product_id;
   end if;
   update public.orders set status=p_status,seller_note=coalesce(p_note,seller_note),updated_at=now() where id=p_order_id;
   update public.delivery_records set status=case when p_status='dispatched' then 'dispatched' when p_status='delivered' then 'delivered' when p_status='ready_for_collection' then 'ready_for_collection' when p_status='completed' then 'completed' when p_status='cancelled' then 'cancelled' else status end where order_id=p_order_id;
@@ -186,34 +190,49 @@ revoke all on function public.admin_review_verification(uuid,text,text) from pub
 grant execute on function public.admin_review_verification(uuid,text,text) to authenticated;
 
 -- Admin visibility for operational queues.
+drop policy if exists "admin profiles read" on public.profiles;
 create policy "admin profiles read" on public.profiles for select using(public.is_admin());
+drop policy if exists "admin products read" on public.products;
 create policy "admin products read" on public.products for select using(public.is_admin());
+drop policy if exists "admin orders read" on public.orders;
 create policy "admin orders read" on public.orders for select using(public.is_admin());
+drop policy if exists "admin verification read" on public.verification_submissions;
 create policy "admin verification read" on public.verification_submissions for select using(public.is_admin());
+drop policy if exists "admin disputes read" on public.refund_records;
 create policy "admin disputes read" on public.refund_records for select using(public.is_admin());
+drop policy if exists "admin payment records read" on public.payment_records;
 create policy "admin payment records read" on public.payment_records for select using(public.is_admin());
 
 -- Remove unsafe direct state mutation policies. State changes use the validated RPCs above.
 drop policy if exists "profile self update" on public.profiles;
+drop policy if exists "profile self update safe fields" on public.profiles;
 create policy "profile self update safe fields" on public.profiles for update using(auth.uid()=id) with check(auth.uid()=id);
 drop policy if exists "order parties update" on public.orders;
 drop policy if exists "payment parties update" on public.payment_records;
 drop policy if exists "reversal parties update" on public.reversal_reports;
 drop policy if exists "delivery parties" on public.delivery_records;
+drop policy if exists "delivery parties read" on public.delivery_records;
 create policy "delivery parties read" on public.delivery_records for select using(auth.uid() in(buyer_id,seller_id) or public.is_admin());
 drop policy if exists "notifications own" on public.notifications;
+drop policy if exists "notifications own read" on public.notifications;
 create policy "notifications own read" on public.notifications for select using(auth.uid()=user_id);
+drop policy if exists "notifications own update" on public.notifications;
 create policy "notifications own update" on public.notifications for update using(auth.uid()=user_id) with check(auth.uid()=user_id);
 drop policy if exists "stock movements owner" on public.stock_movements;
+drop policy if exists "stock movements owner read" on public.stock_movements;
 create policy "stock movements owner read" on public.stock_movements for select using(auth.uid()=owner_id);
 drop policy if exists "inventory items owner" on public.inventory_items;
+drop policy if exists "inventory items owner read" on public.inventory_items;
 create policy "inventory items owner read" on public.inventory_items for select using(auth.uid()=owner_id);
+drop policy if exists "inventory items owner insert" on public.inventory_items;
 create policy "inventory items owner insert" on public.inventory_items for insert with check(auth.uid()=owner_id);
 
 -- Restrict public writes to verification decisions and reviews to eligible completed orders.
 drop policy if exists "verification own insert" on public.verification_submissions;
+drop policy if exists "verification own insert pending" on public.verification_submissions;
 create policy "verification own insert pending" on public.verification_submissions for insert with check(auth.uid()=user_id and status='pending' and reviewed_by is null);
 drop policy if exists "reviewer insert" on public.reviews;
+drop policy if exists "review completed counterpart" on public.reviews;
 create policy "review completed counterpart" on public.reviews for insert with check(
  reviewer_id=auth.uid() and exists(select 1 from public.orders o where o.id=order_id and o.status='completed' and auth.uid()=o.buyer_id and reviewee_id=o.seller_id)
 );
@@ -296,7 +315,9 @@ end; $$;
 revoke all on function public.admin_resolve_refund(uuid,text,text) from public;
 grant execute on function public.admin_resolve_refund(uuid,text,text) to authenticated;
 
+drop policy if exists "admin inventory read" on public.inventory_items;
 create policy "admin inventory read" on public.inventory_items for select using(public.is_admin());
+drop policy if exists "admin verification update" on public.verification_submissions;
 create policy "admin verification update" on public.verification_submissions for update using(public.is_admin()) with check(public.is_admin());
 
 create or replace function public.on_review_notify() returns trigger
@@ -346,11 +367,14 @@ grant execute on function public.respond_payment_reversal(uuid,boolean,text) to 
 -- Tighten remaining write paths so users cannot forge an already-reviewed state.
 drop policy if exists "profile self insert" on public.profiles;
 drop policy if exists "farms public read" on public.farms;
+drop policy if exists "farms owner read" on public.farms;
 create policy "farms owner read" on public.farms for select using(auth.uid()=owner_id or public.is_admin());
 drop policy if exists "buyer reversal insert" on public.reversal_reports;
+drop policy if exists "buyer reversal insert pending" on public.reversal_reports;
 create policy "buyer reversal insert pending" on public.reversal_reports for insert with check(reported_by=auth.uid() and status='reported' and seller_response is null and exists(select 1 from public.orders o where o.id=order_id and o.buyer_id=auth.uid()));
 revoke insert,update,delete on public.reversal_reports from authenticated;
 drop policy if exists "buyer refund insert" on public.refund_records;
+drop policy if exists "buyer refund insert pending" on public.refund_records;
 create policy "buyer refund insert pending" on public.refund_records for insert with check(requested_by=auth.uid() and status='requested' and resolution_notes is null and exists(select 1 from public.orders o where o.id=order_id and o.buyer_id=auth.uid()));
 revoke insert,update,delete on public.refund_records from authenticated;
 drop policy if exists "admin verification update" on public.verification_submissions;

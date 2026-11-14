@@ -67,6 +67,39 @@ test('seller updates cannot override administrator product moderation', () => {
   assert.match(schema,policy);
   assert.match(migration,/drop policy if exists "product seller update" on public\.products/i);
   assert.match(migration,policy);
+  const start=migration.indexOf('create or replace function public.seller_update_order');
+  const end=migration.indexOf('revoke all on function public.seller_update_order',start);
+  const sellerUpdate=migration.slice(start,end);
+  assert.match(sellerUpdate,/status=case when status in \('paused','removed'\) then status else 'active'::public\.product_status end/i);
+});
+
+test('every migration policy can be safely recreated', () => {
+  const sql=fs.readFileSync(path.join(root,'supabase/migrations/202611130001_secure_workflows.sql'),'utf8')
+    .replace(/--[^\r\n]*/g,'');
+  const statements=sql.split(';').map(statement=>statement.trim()).filter(Boolean);
+  const policies=statements
+    .map((statement,index)=>({statement,index}))
+    .filter(({statement})=>/^create policy\b/i.test(statement));
+  assert.ok(policies.length>0);
+  for(const {statement,index} of policies){
+    const policy=statement.match(/^create policy\s+"([^"]+)"\s+on\s+public\.([a-z_]+)/i);
+    assert.ok(policy,`Could not parse policy statement: ${statement}`);
+    const previous=statements[index-1];
+    assert.equal(
+      previous.toLowerCase(),
+      `drop policy if exists "${policy[1].toLowerCase()}" on public.${policy[2].toLowerCase()}`,
+      `Policy "${policy[1]}" must be dropped before it is recreated`
+    );
+  }
+});
+
+test('inventory controls are limited to eligible account roles', () => {
+  const page=fs.readFileSync(path.join(root,'app/inventory/page.tsx'),'utf8');
+  const component=fs.readFileSync(path.join(root,'components/InventoryManager.tsx'),'utf8');
+  assert.match(page,/profile\?\.role === "farmer" \|\| profile\?\.role === "supplier"/);
+  assert.match(page,/InventoryManager canManageInventory=\{canManageInventory\}/);
+  assert.match(component,/canManageInventory \?/);
+  assert.match(component,/Inventory management is available to Farmer and Agri-Vet Supplier accounts/);
 });
 
 test('Data API grants remain explicit and protected records are RPC-only', () => {

@@ -8,7 +8,7 @@ Run date: 14 November 2026
 
 - Direct off-platform payments and manual evidence are required. The order-detail UI was still exposing an M-Pesa option, which violates the product rule that there is no payment gateway and no M-Pesa API. This has been corrected to a generic direct-payment setup: cash / bank transfer / direct transfer / other, and the platform records evidence only.
 - Refund requests were being created through a direct insert into `refund_records` from the client, bypassing the protected workflow. A database RPC (`request_refund`) now enforces buyer-only access and auditability.
-- Sellers could reactivate listings paused or removed by an administrator. The seller update policy now blocks changes to listings in those moderation states, in both the fresh schema and the secure-workflows migration.
+- Direct seller updates to listings paused or removed by an administrator are blocked by the product update policy. The review found that `seller_update_order` cancellation could still reactivate a paused/removed product; this is now fixed locally by preserving moderated statuses, with a source regression test. The migration has not been applied and the behavior has not been tested against PostgreSQL or live accounts.
 - The project still cannot be declared production-ready because real Supabase credentials/configuration and role-based live tests are absent.
 
 ### P1 — partially implemented and requires live validation
@@ -28,9 +28,9 @@ Run date: 14 November 2026
 
 - Source and SQL inspection: **PASS** — actual app code and SQL were inspected directly; requested handoff/security/testing docs were not present in this checkout.
 - `npm ci`: **PASS** — clean install completed from the updated lockfile.
-- `npm audit --audit-level=high`: **PASS** — retry succeeded with 0 vulnerabilities after an initial npm registry `ECONNRESET`.
+- `npm audit --audit-level=high`: **PASS** — retry succeeded with 0 vulnerabilities after an initial npm registry `ECONNRESET`; the latest attempt also hit `ECONNRESET` before the retry passed.
 - `npm ls --json --all`: **PASS** — dependency tree is consistent; patched Next/PostCSS and jsPDF/DOMPurify versions are installed.
-- `npm test`: **PASS** — 6 tests passed, including regression checks for administrator listing moderation and explicit Data API grants.
+- `npm test`: **PASS** — 8 tests passed, including regression checks for administrator listing moderation, preserving moderation on cancellation, rerunnable policy definitions, inventory role eligibility, and explicit Data API grants.
 - `npm run typecheck`: **PASS**.
 - `npm run build`: **PASS** — optimized Next.js 16 production build completed. Next.js warns that React 18 support is deprecated and will be removed in Next.js 17, although React 18 remains within the current peer range.
 - `git diff --check`: **PASS** after this report update.

@@ -6,7 +6,7 @@ Audit date: 14 November 2026
 
 The initial dependency audit reported 4 vulnerabilities: 2 high and 2 critical. The vulnerable dependency paths were updated without `npm audit fix --force`. The final clean install, JSON audit, high-severity audit, typecheck, test suite and production build all pass.
 
-The source review also found that sellers could override an administrator's paused/removed product status. The RLS policy is now constrained in both the fresh schema and the secure-workflows migration, with a regression test. The SQL has not been run against a live Supabase project, so database enforcement still requires live verification.
+The source review found that sellers could override an administrator's paused/removed product status through direct product updates and, separately, through order cancellation in the secure-workflows migration. Both paths are now addressed locally: the update policy remains constrained, and cancellation preserves paused/removed states. Policy creation is also guarded for reruns, and inventory controls are role-gated. These fixes have source regression tests, but the SQL has not been run against PostgreSQL or the live Supabase project.
 
 This report does not certify the application as fully secure or production-ready. No deployment was made.
 
@@ -29,6 +29,9 @@ The Next.js advisories included denial-of-service, request-smuggling/cache, SSRF
 - Updated Next.js's nested PostCSS to `8.5.23`; the direct PostCSS dependency remains `8.5.33`.
 - Migrated Next.js request APIs to async `cookies`, `params` and `searchParams`, and renamed `middleware.ts` to the Next.js 16 `proxy.ts` convention.
 - Restricted seller product updates so sellers cannot modify listings whose status is `paused` or `removed`. Applied the same policy in [schema.sql](./supabase/schema.sql) and [202611130001_secure_workflows.sql](./supabase/migrations/202611130001_secure_workflows.sql).
+- Updated cancellation stock restoration in the secure-workflows migration to preserve administrator-paused or removed product statuses.
+- Added matching `DROP POLICY IF EXISTS` statements before every migration policy creation and a static re-run-safety regression test.
+- Limited inventory controls to Farmer and Agri-Vet Supplier roles, matching the database trigger's authorization rule.
 - Added baseline response headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and a `Permissions-Policy` that disables unused camera, microphone and browser geolocation access.
 - Added a source regression test for the seller/moderator RLS policy.
 - Updated [README.md](./README.md) for Next.js 16 and its Node.js 20.9 minimum.
@@ -51,7 +54,7 @@ No Supabase service-role key or private project secret was added. `.env.local` r
 
 | # | Severity | File | Lines | Vulnerability | Confidence |
 |---|----------|------|-------|---------------|------------|
-| 1 | 🟡 MEDIUM | [schema.sql](./supabase/schema.sql) | 122 | Seller RLS updates previously let a seller reactivate an administrator-paused or removed listing. The seller update policy now excludes those moderation states in the base schema and migration. | 9/10 |
+| 1 | 🟡 MEDIUM | [schema.sql](./supabase/schema.sql), [202611130001_secure_workflows.sql](./supabase/migrations/202611130001_secure_workflows.sql) | schema 122; migration 113–118, 259–262 | Seller direct updates and order cancellation could reactivate administrator-paused or removed listings. **Fixed locally:** the direct update policy excludes moderated statuses, and cancellation preserves them. The migration has not been applied or live-tested. | 9/10 |
 
 ### Hardening checks
 
@@ -73,7 +76,7 @@ No Supabase service-role key or private project secret was added. `.env.local` r
 | `npm audit --audit-level=high` | PASS — 0 vulnerabilities. |
 | `npm ls --json --all` | PASS — exit code 0; patched package paths verified. |
 | `npm run typecheck` | PASS. |
-| `npm test` | PASS — 5 tests. |
+| `npm test` | PASS — 8 tests, including the later migration and role-gating regression checks. |
 | `npm run build` | PASS — Next.js 16 optimized build. Next.js warns that React 18 support is deprecated and will be removed in Next.js 17; React 18 is currently within the peer range. |
 | Production build header manifest | PASS — all configured baseline headers are present. |
 
