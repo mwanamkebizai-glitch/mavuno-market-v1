@@ -68,3 +68,13 @@ test('seller updates cannot override administrator product moderation', () => {
   assert.match(migration,/drop policy if exists "product seller update" on public\.products/i);
   assert.match(migration,policy);
 });
+
+test('Data API grants remain explicit and protected records are RPC-only', () => {
+  const sql=fs.readFileSync(path.join(root,'supabase/migrations/202611130001_secure_workflows.sql'),'utf8');
+  assert.match(sql,/revoke all privileges on table[\s\S]*?from anon, authenticated/i);
+  assert.match(sql,/grant select on public\.products, public\.reviews to anon/i);
+  assert.match(sql,/grant update\(read_at\) on public\.notifications to authenticated/i);
+  assert.match(sql,/revoke insert,update,delete on public\.reversal_reports from authenticated/i);
+  assert.match(sql,/revoke insert,update,delete on public\.refund_records from authenticated/i);
+  assert.match(sql,/grant select on[\s\S]*public\.reversal_reports,[\s\S]*public\.refund_records[\s\S]*to authenticated/i);
+});

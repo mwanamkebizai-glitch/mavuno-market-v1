@@ -349,10 +349,10 @@ drop policy if exists "farms public read" on public.farms;
 create policy "farms owner read" on public.farms for select using(auth.uid()=owner_id or public.is_admin());
 drop policy if exists "buyer reversal insert" on public.reversal_reports;
 create policy "buyer reversal insert pending" on public.reversal_reports for insert with check(reported_by=auth.uid() and status='reported' and seller_response is null and exists(select 1 from public.orders o where o.id=order_id and o.buyer_id=auth.uid()));
-revoke update,delete on public.reversal_reports from authenticated;
+revoke insert,update,delete on public.reversal_reports from authenticated;
 drop policy if exists "buyer refund insert" on public.refund_records;
 create policy "buyer refund insert pending" on public.refund_records for insert with check(requested_by=auth.uid() and status='requested' and resolution_notes is null and exists(select 1 from public.orders o where o.id=order_id and o.buyer_id=auth.uid()));
-revoke update,delete on public.refund_records from authenticated;
+revoke insert,update,delete on public.refund_records from authenticated;
 drop policy if exists "admin verification update" on public.verification_submissions;
 
 create or replace function public.validate_inventory_owner_role() returns trigger
@@ -393,3 +393,31 @@ for each row execute function public.validate_farm_and_inventory_links();
 drop trigger if exists validate_inventory_location_owner on public.inventory_items;
 create trigger validate_inventory_location_owner before insert or update of location_id,owner_id on public.inventory_items
 for each row execute function public.validate_farm_and_inventory_links();
+
+-- Explicit Data API permissions for projects with automatic table exposure disabled.
+revoke all privileges on table
+  public.profiles, public.farms, public.farm_activities, public.crop_calendars,
+  public.farm_machinery, public.farm_workers, public.products,
+  public.inventory_locations, public.inventory_items, public.stock_movements,
+  public.orders, public.payment_records, public.reversal_reports, public.refund_records,
+  public.delivery_records, public.verification_submissions, public.saved_products,
+  public.messages, public.notifications, public.reviews, public.activities
+from anon, authenticated;
+
+grant usage on schema public to anon, authenticated;
+grant usage on type public.user_role, public.product_status, public.order_status, public.payment_status to anon, authenticated;
+
+grant select on public.products, public.reviews to anon;
+grant select, update on public.profiles to authenticated;
+grant select, insert, update, delete on
+  public.farms, public.farm_activities, public.crop_calendars, public.farm_machinery, public.farm_workers,
+  public.products, public.inventory_locations
+to authenticated;
+grant select, insert on public.inventory_items, public.verification_submissions to authenticated;
+grant select, insert, update, delete on public.saved_products to authenticated;
+grant select, insert on public.messages, public.reviews to authenticated;
+grant select on
+  public.stock_movements, public.orders, public.payment_records, public.reversal_reports,
+  public.refund_records, public.delivery_records, public.activities, public.notifications
+to authenticated;
+grant update(read_at) on public.notifications to authenticated;

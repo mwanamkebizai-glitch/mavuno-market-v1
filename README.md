@@ -39,12 +39,12 @@ The current app is a V1 functional foundation, not a finished enterprise product
 3. Run `npm install`.
 4. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for your Supabase project.
 5. In a **new/empty** Supabase project, run `supabase/schema.sql` in the SQL Editor.
-6. Then run `supabase/migrations/202611130001_secure_workflows.sql` in the SQL Editor.
+6. Then run `supabase/migrations/202611130001_secure_workflows.sql` in the SQL Editor. It applies the secure workflows and explicit least-privilege Data API grants, so automatic table exposure can remain disabled.
 7. Enable email/password authentication. Configure the site URL and redirect URLs for local development and your deployed domain.
 8. Run `npm test`, `npm run typecheck`, `npm run build`, then `npm run dev`.
 9. Push to GitHub and import the repository into Vercel. Add the same public Supabase environment variables in Vercel.
 
-Do not run the base schema twice on the same database: it creates enum types and tables for a fresh project. Apply the migration once after the base schema.
+Do not run the base schema twice on the same database: it creates enum types and tables for a fresh project. Apply the migration once after the base schema. The migration revokes direct client writes to protected order, payment, delivery, inventory-movement, refund and reversal records; those changes go through validated database functions.
 
 ## Provision the first administrator
 
