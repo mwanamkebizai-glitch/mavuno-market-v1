@@ -13,7 +13,7 @@ Run date: 14 November 2026
 
 ### P1 — partially implemented and requires live validation
 
-- Role-based account creation and role protections are present in SQL (`profiles`, user_role enum, admin assignment via trusted SQL), but the live Supabase project has not been configured and role-based E2E tests were not executed.
+- Role-based account creation and role protections are present in SQL (`profiles`, user_role enum, admin assignment via trusted SQL), and the live project has its base tables, but protected workflows and role-based E2E tests are not verified.
 - Checkout and seller state workflows exist in the SQL migration, but they require a real project and database execution to verify PostgreSQL/RLS behavior.
 - Inventory, verification, moderation and notification flows are present in SQL, but they remain unverified in a live Supabase project.
 
@@ -41,18 +41,18 @@ Run date: 14 November 2026
 ### Cloud setup status and blocked checks
 
 - Supabase project `mavuno-market` exists in Frankfurt and was previously shown as Healthy. A fresh read-only inventory returned **21 public base tables**, matching the application's base schema table count; the database is not empty.
-- This confirms the table objects exist, but does not independently prove which script created them. The secure-workflows migration, RLS policies, and grants are **not yet verified**. Do not rerun either script until those objects are inspected read-only.
-- The Supabase dashboard showed intermittent 404/resource errors and authentication-lock warnings during this session. No RLS, function, or grant inventory was obtained.
+- A read-only security metadata query returned 21 tables, all 21 with RLS enabled, 37 policies, 126 table-grant rows for `anon`/`authenticated`, and no matching protected workflow RPCs. The 37 policies match the base schema policy count; the secure-workflows migration appears absent or incomplete. Per-table grant details have not been verified.
+- The Supabase dashboard showed intermittent 404/resource errors and authentication-lock warnings during this session, though the two read-only metadata queries completed successfully.
 - Both required local Supabase environment entries still match the placeholders in `.env.example`; their values are intentionally not recorded here.
 - GitHub `main` contains the explicit Data API permissions and protected RPC updates. Vercel has not imported the repository, no Vercel project/deployment is verified, and no Vercel environment values are configured.
 
-- PostgreSQL base tables: **CONFIRMED PRESENT** — 21 public base tables were returned. Secure-workflows migration/RLS/grant state: **NOT VERIFIED**.
-- Supabase live RLS tests: **NOT RUN** — the secure-workflows migration, policies, and grants have not been verified; application credentials remain placeholders.
+- PostgreSQL base tables and RLS enablement: **CONFIRMED PRESENT** — 21 public tables and 21 RLS-enabled tables. The secure-workflows migration is **NOT VERIFIED**; expected RPCs were absent.
+- Supabase live authorization tests: **NOT RUN** — policies and grants have not been behavior-tested, and application credentials remain placeholders.
 - Role-based browser end-to-end tests: **NOT RUN** — no real role-based accounts or configured application environment are available.
 
 ## Remaining blockers before production launch
 
-- Do not reapply the base schema: 21 public base tables are present. Verify the secure-workflows functions, RLS policies, and grants with read-only queries before deciding whether any migration is needed.
+- Do not reapply the base schema: 21 public base tables and RLS enablement are present. Review the secure-workflows migration and confirm before applying it once; then verify the resulting functions, policies, and per-table grants.
 - Configure the required Supabase URL and anon/publishable key privately in local and Vercel settings; never use a service-role key in the client.
 - Import the repository into Vercel and configure Supabase Auth site/redirect URLs after the Vercel domain is available.
 - Role-based end-to-end tests must pass for farmer, supplier, buyer and admin flows.
@@ -61,4 +61,4 @@ Run date: 14 November 2026
 
 ## Status
 
-The source tests, typecheck, production build, and npm audit pass; the audit retry reported 0 vulnerabilities. The base tables are present, but secure-workflow/RLS/grant state is unverified. This project is not production-ready: Supabase environment values remain placeholders, Vercel is not configured, and role-based end-to-end tests have not been performed.
+The source tests, typecheck, production build, and npm audit pass; the audit retry reported 0 vulnerabilities. All 21 base tables have RLS enabled, but the secure-workflows RPCs are absent and policy/grant behavior is unverified. This project is not production-ready: Supabase environment values remain placeholders, Vercel is not configured, and role-based end-to-end tests have not been performed.
