@@ -47,4 +47,13 @@ No Supabase SQL was executed in this preparation. Do not run `supabase/schema.sq
 5. Complete a Preview import/deployment only after configuration, then verify all role-specific workflows, RLS, manual location, and direct/off-platform payment behavior.
 6. Configure Supabase Auth redirect URLs for the confirmed Vercel domain. Production launch requires successful role-based end-to-end testing and owner approval.
 
-No production SQL, production deployment, payment integration, M-Pesa API, or location-tracking behavior was added or performed.
+No mutating production SQL, production deployment, payment integration, M-Pesa API, or location-tracking behavior was added or performed. A read-only live catalog preflight is recorded below.
+
+## Release attempt update — 15 November 2026
+
+- The role-dashboard changes are pushed to GitHub `main` at `657140ec8d6eaf3da6a33e427eb4e6f845eb04c8`.
+- Local verification passed: 14 tests, TypeScript check, production build, and `npm audit --audit-level=high` (0 vulnerabilities). The build still reports the React 18 deprecation warning.
+- A read-only preflight on the existing `mavuno-market` Supabase project found 21 public base tables, none of the 11 expected workflow RPC names, and no migration ledger. No migration or other database mutation was run. The pgTAP/RLS suite has not been executed, so applying the security-workflows migration remains unsafe to certify.
+- No backup was created; backup preparation remains paused at the owner's request.
+- No Vercel project or deployment was created. The Mavuno Market import page remains stuck on "Loading project setup"; the Vercel CLI is authenticated to a different team (`Traderkit`), and the requested `mavuno-market` scope is unavailable to that CLI account.
+- The project is still not production-ready. Resolve Vercel access and configure public Supabase environment values privately, then test the migration on a disposable database before considering a live migration. Do not paste credentials into chat.

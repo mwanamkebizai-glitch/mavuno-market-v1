@@ -1,6 +1,6 @@
 # Mavuno Market V1 — verification report
 
-Run date: 14 November 2026
+Run date: 15 November 2026
 
 ## Priority audit of implemented / partial / missing / broken requirements
 
@@ -15,8 +15,8 @@ Run date: 14 November 2026
 | P1 | RLS and least-privilege Data API grants | Migration explicitly grants intended reads/writes and routes protected records through RPCs | Migration absent from prior live catalog check; full post-apply verification remains outstanding |
 | P1 | Mobile-first UX | Responsive layouts and mobile navigation exist in source | No role-based browser E2E run |
 | P1 | Public client configuration only | Browser/server clients use only the public Supabase URL and anon-key environment variables; `.env.local` is ignored | Local values remain placeholders; no Vercel environment values configured |
-| P1 | Existing Supabase schema and migration history | 21 public tables with RLS were previously observed; no workflow RPCs or migration ledger were found | Must re-run read-only preflight; partial prior application cannot be ruled out |
-| P1 | Existing Vercel project/import | Repository import wizard shows `main`, but the Create button is disabled | No project, deployment, or environment configuration verified |
+| P1 | Existing Supabase schema and migration history | A read-only preflight found 21 public base tables, none of the expected workflow RPCs, and no migration ledger; RLS status was not rechecked | Migration remains unapplied; PostgreSQL/RLS tests remain outstanding |
+| P1 | Existing Vercel project/import | No project exists in the Mavuno Market team; the import form remains stuck loading | No project, deployment, or environment configuration verified |
 
 ### P0 — must fix before production launch
 
@@ -52,17 +52,17 @@ Run date: 14 November 2026
 ### Not run / not available
 
 - PostgreSQL/pgTAP execution: **NOT RUN** — the `psql` and Supabase CLI are not installed. `supabase/tests/security_workflows.sql` contains 43 planned assertions for dedicated role/JWT fixtures and is a disposable-database test artifact only; its assertions are not live SQL verification.
-- SQL/RLS against the live database: **NOT RUN** — deliberately not run; no live schema or migration changes were made.
+- Live Supabase SQL/RLS mutation or tests: **NOT RUN** — a read-only catalog preflight was run; no migration or other database changes were made.
 - Browser E2E: **NOT RUN** — no browser E2E runner is configured and real Supabase settings/accounts are unavailable.
-- Vercel import/deploy: **NOT COMPLETED** — the New Project wizard displays the existing repo on `main`, but its Create button is disabled. No project or deployment was created.
+- Vercel import/deploy: **NOT COMPLETED** — the Mavuno Market dashboard has no projects and its import form remains on "Loading project setup". The Vercel CLI is authenticated to a different team, so no project or deployment was created.
 - Initial requested docs `.github/copilot-instructions.md`, `COPILOT_HANDOFF.md`, `SECURITY.md`, and `TESTING_GUIDE.md`: **NOT PRESENT** in this checkout.
 
 ### Cloud setup status and blocked checks
 
-- The last recorded read-only Supabase catalog checks found **21 public base tables, 21/21 with RLS, 37 policies, and 126 table-grant rows**. Those results are historical; they were not re-run in this task.
-- That prior catalog check did not find the protected workflow RPCs, and `to_regclass('supabase_migrations.schema_migrations')` returned `NULL`. This is consistent with the migration being unapplied, but cannot rule out partial manual application.
+- A read-only Supabase catalog preflight on 15 November found **21 public base tables**, none of the 11 expected workflow RPC names, and no `supabase_migrations.schema_migrations` relation. RLS status was not rechecked. This indicates the prepared migration is absent, but is not a substitute for PostgreSQL/RLS tests.
 - Supabase environment values remain owner-managed and are not recorded here. Prior inspection found placeholders; this task did not read `.env.local`.
-- The existing GitHub repository and `main` branch were verified. Vercel has no verified project or configured environment.
+- GitHub `main` was updated and verified at commit `657140ec8d6eaf3da6a33e427eb4e6f845eb04c8`. Vercel has no project or configured environment.
+- No database backup was created; backup preparation remains paused at the owner's request.
 
 - PostgreSQL base tables and RLS enablement: **PREVIOUSLY CONFIRMED** — 21 public tables and 21 RLS-enabled tables. The secure-workflows migration is **NOT VERIFIED**; expected RPCs were absent in that prior check.
 - Supabase live authorization tests: **NOT RUN** — policies and grants have not been behavior-tested, and application credentials remain placeholders.
@@ -79,4 +79,4 @@ Run date: 14 November 2026
 
 ## Status
 
-The current source tests, typecheck, production build, and dependency audit pass (the audit required a network retry). The pgTAP test file has not been executed. Prior live metadata showed all 21 existing tables had RLS, but no workflow RPCs or migration ledger; that status has not been refreshed. No production SQL or deployment was run. This project is **not production-ready**: Supabase configuration, migration application, PostgreSQL/RLS tests, Vercel setup, and role-based browser end-to-end tests remain outstanding.
+The current source tests (14/14), TypeScript check, production build, and dependency audit pass; the audit found 0 vulnerabilities. The build reports the existing React 18 deprecation warning. The pgTAP test file has not been executed. A read-only live preflight found 21 public tables and no expected workflow RPCs or migration ledger; no database mutation was run. GitHub is updated at `657140ec8d6eaf3da6a33e427eb4e6f845eb04c8`. Vercel deployment remains blocked because project setup is stuck and the CLI is authenticated to another team. This project is **not production-ready**: migration application, PostgreSQL/RLS tests, Vercel setup, and role-based browser end-to-end tests remain outstanding.
