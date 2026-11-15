@@ -41,9 +41,10 @@ Run date: 14 November 2026
 ### Current worktree checks
 
 - `npm ci`: **PASS** — installed 140 packages from the lockfile. npm warned that `core-js`'s postinstall script was not approved by the local `allowScripts` policy; installation and build still completed.
-- `npm test`: **PASS** — 11 tests passed, including moderation/cancellation regression checks, explicit function grants, policy rerun safety, owner-provisioned admin enforcement, and static assertions that the transactional JWT/role pgTAP suite covers protected workflows.
-- `npm run typecheck`: **PASS**.
-- `npm run build`: **PASS** — Next.js 16.4.6 production build completed. It warns that React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17.
+- Dashboard task local tests: **PASS** — `node --test tests/source.test.cjs`, 14 tests passed, including role-specific dashboard/navigation and saved-product checks. PowerShell blocked the `npm` script shim, so the existing Node test runner was run directly.
+- Dashboard task TypeScript check: **PASS** — `node node_modules/typescript/bin/tsc --noEmit`.
+- Dashboard task production build: **PASS** — `node node_modules/next/dist/bin/next build` completed on Next.js 16.4.6. It warns that React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17.
+- Dependency audit: **NOT RERUN for this dashboard task**. The earlier audit recorded 0 vulnerabilities on retry.
 - `npm audit --audit-level=high`: **PASS on retry** — first request failed with registry `ECONNRESET`; retry reported 0 vulnerabilities.
 - `git diff --check`: **PASS**.
 - `.env.local`: **ignored by Git**. Its contents were not read or recorded.

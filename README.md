@@ -13,7 +13,11 @@ Mavuno Market is a Kenyan agriculture marketplace with Farmer, Agri-Vet Supplier
 ## Implemented in this package
 
 - Role-based account profile foundations for farmer, supplier and individual/business/institutional buyer.
+- Server-selected Farmer, Agri-Vet Supplier, Buyer and Administrator dashboards with account-scoped summaries, empty/error states, and a loading state.
+- Responsive role-specific navigation; privileged administration remains server-checked and public signup cannot assign the admin role.
 - Shared active product marketplace and listing management.
+- Marketplace category filters for farm produce and Agri-Vet supplies, plus buyer saved-product actions and a private saved-products page.
+- Read-only farm crop/activity/machinery/worker sections and supplier inventory location/stock-movement sections backed by the existing owner-scoped tables.
 - Client cart with multi-seller, multi-product submission.
 - **Database-side atomic checkout**: server re-reads product price and stock under row locks, rejects invalid/self-purchases/insufficient stock, creates one seller-specific order per cart line, reserves stock and creates delivery/collection records in the same transaction.
 - Validated seller order-state transitions and stock restoration on eligible cancellation.

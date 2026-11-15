@@ -12,6 +12,13 @@ catch {
 }
 const root = path.resolve(__dirname, '..');
 function files(dir) { return fs.readdirSync(dir,{withFileTypes:true}).flatMap(x=>x.isDirectory()?files(path.join(dir,x.name)):[path.join(dir,x.name)]); }
+function loadTypeScriptModule(file) {
+  const source=fs.readFileSync(path.join(root,file),'utf8');
+  const output=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+  const module={exports:{}};
+  new Function('module','exports',output)(module,module.exports);
+  return module.exports;
+}
 
 test('all application TypeScript and TSX files parse', () => {
   const sources = [...files(path.join(root,'app')),...files(path.join(root,'components')),...files(path.join(root,'lib'))]
@@ -118,7 +125,8 @@ test('inventory controls are limited to eligible account roles', () => {
   const page=fs.readFileSync(path.join(root,'app/inventory/page.tsx'),'utf8');
   const component=fs.readFileSync(path.join(root,'components/InventoryManager.tsx'),'utf8');
   assert.match(page,/profile\?\.role === "farmer" \|\| profile\?\.role === "supplier"/);
-  assert.match(page,/InventoryManager canManageInventory=\{canManageInventory\}/);
+  assert.match(page,/if \(!canManageInventory\)/);
+  assert.match(page,/<InventoryManager canManageInventory \/>/);
   assert.match(component,/canManageInventory \?/);
   assert.match(component,/Inventory management is available to Farmer and Agri-Vet Supplier accounts/);
 });
@@ -170,4 +178,57 @@ test('admin role remains owner-provisioned and browser clients use only public k
   assert.match(clientFiles,/NEXT_PUBLIC_SUPABASE_URL/);
   assert.match(clientFiles,/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
   assert.doesNotMatch(clientFiles,/SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test('role navigation separates Farmer, Supplier, Buyer, and Administrator links', () => {
+  const {getDashboardKind,getRoleNavigation}=loadTypeScriptModule('lib/roles.ts');
+  assert.equal(getDashboardKind('farmer'),'farmer');
+  assert.equal(getDashboardKind('supplier'),'supplier');
+  for(const role of ['buyer_individual','buyer_business','buyer_institution']) assert.equal(getDashboardKind(role),'buyer');
+  assert.equal(getDashboardKind('admin'),'admin');
+  assert.equal(getDashboardKind('unknown-role'),'unknown');
+
+  const routes=(role)=>getRoleNavigation(role).map(link=>link.href);
+  assert.ok(routes('farmer').includes('/farms#crops'));
+  assert.ok(routes('farmer').includes('/farms#activities'));
+  assert.ok(routes('farmer').includes('/farms#machinery'));
+  assert.ok(routes('farmer').includes('/farms#workers'));
+  assert.ok(routes('supplier').includes('/inventory#locations'));
+  assert.ok(routes('supplier').includes('/inventory#movements'));
+  assert.ok(routes('supplier').includes('/orders'));
+  assert.ok(routes('buyer_individual').includes('/saved-products'));
+  assert.ok(routes('buyer_individual').includes('/marketplace?category=farm_produce'));
+  assert.ok(routes('buyer_business').includes('/marketplace?category=agri_vet'));
+  assert.ok(routes('admin').includes('/admin'));
+  for(const role of ['farmer','supplier','buyer_individual','buyer_business','buyer_institution']){
+    assert.ok(!routes(role).includes('/admin'));
+  }
+  assert.deepEqual(routes('unknown-role'),[]);
+});
+
+test('dashboard selects the authenticated profile role and renders role-specific data', () => {
+  const page=fs.readFileSync(path.join(root,'app/dashboard/page.tsx'),'utf8');
+  const nav=fs.readFileSync(path.join(root,'components/Nav.tsx'),'utf8');
+  assert.match(page,/supabase\.auth\.getUser\(\)/);
+  assert.match(page,/\.eq\("id", user\.id\)/);
+  assert.match(page,/getDashboardKind\(profile\.role\)/);
+  for(const kind of ['farmer','supplier','buyer','admin','unknown']) assert.ok(page.includes(`kind === "${kind}"`),`Missing ${kind} dashboard branch`);
+  assert.match(page,/We could not load some farmer records/);
+  assert.match(page,/We could not load some supplier records/);
+  assert.match(page,/We could not load some buyer records/);
+  assert.match(nav,/getRoleNavigation\(role\)/);
+  assert.match(nav,/\.eq\("id", user\.id\)/);
+});
+
+test('saved products are owner-scoped and the UI does not offer buyers admin self-assignment', () => {
+  const page=fs.readFileSync(path.join(root,'app/saved-products/page.tsx'),'utf8');
+  const saveButton=fs.readFileSync(path.join(root,'components/SaveProduct.tsx'),'utf8');
+  const signup=fs.readFileSync(path.join(root,'app/signup/page.tsx'),'utf8');
+  const schema=fs.readFileSync(path.join(root,'supabase/schema.sql'),'utf8');
+  assert.match(page,/buyerRoles\.includes\(profile\.role\)/);
+  assert.match(page,/\.eq\("user_id", user\.id\)/);
+  assert.match(saveButton,/\.eq\("user_id", user\.id\)/);
+  assert.match(saveButton,/\.eq\("product_id", productId\)/);
+  assert.doesNotMatch(signup,/<option value="admin"/i);
+  assert.match(schema,/if r='admin' then r := 'buyer_individual'/i);
 });
