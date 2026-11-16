@@ -243,6 +243,8 @@ test('signup and sign-in use Supabase Auth and link between the existing flows',
   assert.match(login,/auth\.signInWithPassword/);
   assert.match(login,/href="\/signup"/);
   assert.match(login,/email not confirmed/i);
+  assert.match(login,/auth\.resend/);
+  assert.match(login,/Resend confirmation email/);
   assert.match(login,/role="alert"/);
 });
 
