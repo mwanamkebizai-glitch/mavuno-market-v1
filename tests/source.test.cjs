@@ -232,3 +232,79 @@ test('saved products are owner-scoped and the UI does not offer buyers admin sel
   assert.doesNotMatch(signup,/<option value="admin"/i);
   assert.match(schema,/if r='admin' then r := 'buyer_individual'/i);
 });
+
+test('farmer homepage section uses the local photo and existing farmer signup flow', () => {
+  const page=fs.readFileSync(path.join(root,'app/page.tsx'),'utf8');
+  const signup=fs.readFileSync(path.join(root,'app/signup/page.tsx'),'utf8');
+  const css=fs.readFileSync(path.join(root,'app/globals.css'),'utf8');
+  const image=path.join(root,'public/images/farmer-how-it-works.png');
+  assert.ok(fs.existsSync(image),'Farmer photo must be present in public/images');
+  assert.match(page,/src="\/images\/farmer-how-it-works\.png"/);
+  assert.match(page,/className="farmer-how-it-works"/);
+  assert.match(page,/Getting started on Mavuno Market is simple/);
+  for(const title of ['Create your profile','List your produce','Connect with buyers','Manage orders','Grow your business']){
+    assert.ok(page.includes(title),`Missing farmer step: ${title}`);
+  }
+  assert.match(page,/<Link className="btn farmer-how-join" href="\/signup">[\s\S]*Join as a Farmer/);
+  assert.match(signup,/useState\("farmer"\)/);
+  assert.doesNotMatch(signup,/<option value="admin"/i);
+  assert.match(css,/\.farmer-how-layout\{[^}]*display:grid/);
+  assert.match(css,/\.farmer-how-photo\{[^}]*aspect-ratio:630\/683/);
+  assert.match(css,/@media\(max-width:850px\)\{\.farmer-how-layout\{grid-template-columns:minmax\(0,1fr\)/);
+  assert.doesNotMatch(css,/@media\(max-width:850px\)\{[^}]*\.farmer-how-photo\{max-height:/);
+});
+
+test('supplier homepage section uses its photo and preselects only the supplier signup role', () => {
+  const page=fs.readFileSync(path.join(root,'app/page.tsx'),'utf8');
+  const signup=fs.readFileSync(path.join(root,'app/signup/page.tsx'),'utf8');
+  const css=fs.readFileSync(path.join(root,'app/globals.css'),'utf8');
+  const supplierStart=page.indexOf('aria-labelledby="supplier-how-it-works-title"');
+  const supplierEnd=page.indexOf('<main className="container"',supplierStart);
+  const section=page.slice(supplierStart,supplierEnd);
+  assert.ok(supplierStart>page.indexOf('aria-labelledby="farmer-how-it-works-title"'));
+  assert.ok(fs.existsSync(path.join(root,'public/images/agrovet-how-it-works.png')));
+  assert.match(section,/src="\/images\/agrovet-how-it-works\.png"/);
+  assert.match(section,/Supply\. Connect\. Grow\./);
+  assert.match(section,/className="farmer-how-content supplier-how-content"/);
+  assert.match(section,/Mavuno Market helps agrovet businesses reach more farmers/);
+  for(const title of ['Register your business','List your products','Reach more farmers','Manage stock and orders','Grow your business']){
+    assert.ok(page.includes(title),`Missing supplier step: ${title}`);
+  }
+  assert.match(section,/href="\/signup\?role=supplier"[\s\S]*Join as an Agrovet Supplier/);
+  assert.match(signup,/new URLSearchParams\(window\.location\.search\)\.get/);
+  assert.match(signup,/requestedRole && selectableRoles\.includes\(requestedRole\)/);
+  assert.match(signup,/setRole\(requestedRole\)/);
+  assert.match(signup,/<option value="supplier">/);
+  assert.doesNotMatch(signup,/<option value="admin"/i);
+  assert.match(css,/\.supplier-how-content>h2\{font-size:clamp\(34px,3\.2vw,46px\)\}/);
+  assert.doesNotMatch(section,/payment gateway|M-Pesa|verified payments/i);
+});
+
+test('buyer homepage section uses the latest photo and contains benefits without signup or delivery claims', () => {
+  const page=fs.readFileSync(path.join(root,'app/page.tsx'),'utf8');
+  const buyerStart=page.indexOf('aria-labelledby="buyer-how-it-works-title"');
+  const buyerEnd=page.indexOf('<main className="container"',buyerStart);
+  const section=page.slice(buyerStart,buyerEnd);
+  const benefitsStart=page.indexOf('const buyerBenefits = [');
+  const benefitsEnd=page.indexOf('];',benefitsStart);
+  const benefits=page.slice(benefitsStart,benefitsEnd);
+  assert.ok(buyerStart>page.indexOf('aria-labelledby="supplier-how-it-works-title"'));
+  assert.ok(fs.existsSync(path.join(root,'public/images/buyer-how-it-works.png')));
+  assert.match(section,/src="\/images\/buyer-how-it-works\.png"/);
+  assert.match(section,/alt="Buyer selecting fresh leafy produce at a local market"/);
+  assert.match(section,/Discover\. Buy\. Benefit\./);
+  assert.match(section,/Mavuno Market connects you with trusted farmers and Agrovet/);
+  for(const benefit of ['Find quality products','Connect with sellers','Get fair prices','Support local agriculture']){
+    assert.ok(page.toLowerCase().includes(benefit.toLowerCase()),`Missing buyer benefit: ${benefit}`);
+  }
+  assert.equal((benefits.match(/title:/g)||[]).length,4);
+  assert.match(section,/buyerBenefits\.map/);
+  assert.match(section,/href="\/signup\?role=buyer_individual"[\s\S]*Continue as a buyer/);
+  assert.doesNotMatch(section,/Join as a Buyer|Create Buyer Account|Get Started|delivery|pickup|payment gateway|M-Pesa/i);
+});
+
+test('homepage hero preserves its full image aspect ratio on tablet and laptop widths', () => {
+  const css=fs.readFileSync(path.join(root,'app/globals.css'),'utf8');
+  assert.match(css,/\.home-hero\{[^}]*min-height:56\.264vw/);
+  assert.match(css,/@media\(max-width:600px\)\{\.home-hero\{[^}]*min-height:0/);
+});

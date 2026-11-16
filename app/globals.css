@@ -3,3 +3,32 @@
 .dashboard-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px}.dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0 26px}.dashboard-stat h2{margin:6px 0 0;font-size:28px}.dashboard-section{margin:24px 0}.dashboard-list{display:grid;gap:10px}.dashboard-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.marketplace-filter{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,2fr) auto;gap:10px}.notice{padding:14px 16px;border:1px solid #e7c977;background:#fff9e6;border-radius:12px}.error-notice{border-color:#e6aaaa;background:#fff2f2;color:#8a2525}.loading-card{min-height:92px;background:linear-gradient(100deg,#fff 30%,#f3f6f0 50%,#fff 70%);background-size:200% 100%;animation:loading-shimmer 1.4s infinite}
 @keyframes loading-shimmer{to{background-position:-200% 0}}
 @media(max-width:600px){.site-nav-row{min-height:60px;flex-wrap:wrap}.brand{font-size:18px}.role-menu-links{grid-template-columns:1fr;max-height:70vh;overflow:auto}.account-link{padding:9px 11px}.guest-nav{gap:4px}.guest-nav a{padding:8px}.dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.marketplace-filter{grid-template-columns:1fr}}
+.home-hero{background-image:linear-gradient(110deg,rgba(14,53,34,.68) 0%,rgba(14,53,34,.48) 52%,rgba(14,53,34,.32) 100%),url("/images/mavuno-market-hero.png");background-size:cover;background-position:center;box-sizing:border-box;min-height:56.264vw}
+@media(max-width:600px){.home-hero{background-position:48% center;min-height:0}}
+.farmer-how-it-works{padding:clamp(56px,8vw,104px) 0;background:linear-gradient(135deg,#eff8ef 0%,#fff 54%,#f1f8f0 100%)}
+.farmer-how-layout{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:clamp(28px,5vw,68px);align-items:center}
+.farmer-how-photo{display:block;width:100%;height:auto;aspect-ratio:630/683;object-fit:cover;object-position:center;border-radius:24px}
+.farmer-how-content{min-width:0}
+.farmer-how-label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 15px;border-radius:999px;background:#d9f2d9;color:#17623b;font-weight:700}
+.farmer-how-content>h2{margin:14px 0 12px;color:#103b2c;font-size:clamp(38px,4.4vw,58px);line-height:1.05}
+.farmer-how-intro{margin:0 0 26px;color:#293c36;font-size:clamp(16px,1.5vw,19px);line-height:1.5}
+.farmer-step-list{position:relative;display:grid;gap:14px;margin:0 0 28px;padding:0;list-style:none}
+.farmer-step-list::before{position:absolute;top:26px;bottom:26px;left:25px;width:2px;background:#b9e2ba;content:""}
+.farmer-step{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px;align-items:start}
+.farmer-step-icon{z-index:1;display:grid;width:52px;height:52px;place-items:center;border-radius:50%;background:#d9f2d9;color:#176a42;box-shadow:0 0 0 4px #f5faf3}
+.farmer-step h3{margin:3px 0 4px;color:#124831;font-size:18px;line-height:1.3}
+.farmer-step p{margin:0;color:#43534b;line-height:1.45}
+.farmer-how-join{margin-left:68px}
+@media(max-width:850px){.farmer-how-layout{grid-template-columns:minmax(0,1fr);gap:36px}.farmer-how-content{width:100%;max-width:680px;margin:auto}}
+@media(max-width:600px){.farmer-how-it-works{padding:44px 0}.farmer-how-layout{gap:28px}.farmer-how-photo{border-radius:20px}.farmer-how-content>h2{font-size:clamp(36px,10vw,46px)}.farmer-step-list{gap:16px}.farmer-step{grid-template-columns:48px minmax(0,1fr);gap:14px}.farmer-step-icon{width:48px;height:48px}.farmer-step-list::before{left:23px;top:24px;bottom:24px}.farmer-step h3{font-size:17px}.farmer-how-join{margin-left:62px}}
+.supplier-how-content>h2{font-size:clamp(34px,3.2vw,46px)}
+.supplier-how-content .farmer-how-intro{margin-bottom:20px;font-size:17px;line-height:1.42}
+.supplier-how-content .farmer-step-list{gap:9px;margin-bottom:20px}
+.supplier-how-content .farmer-step{grid-template-columns:48px minmax(0,1fr);gap:14px}
+.supplier-how-content .farmer-step-icon{width:48px;height:48px}
+.supplier-how-content .farmer-step-list::before{top:24px;bottom:24px;left:23px}
+.supplier-how-content .farmer-step h3{margin:2px 0 3px;font-size:17px}
+.supplier-how-content .farmer-step p{font-size:15px;line-height:1.35}
+.supplier-how-content .farmer-how-join{margin-left:62px}
+@media(max-width:600px){.supplier-how-content>h2{font-size:clamp(34px,8.5vw,40px)}}
+.buyer-how-content>h2{font-size:clamp(34px,3.2vw,46px)}
