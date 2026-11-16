@@ -233,6 +233,19 @@ test('saved products are owner-scoped and the UI does not offer buyers admin sel
   assert.match(schema,/if r='admin' then r := 'buyer_individual'/i);
 });
 
+test('signup and sign-in use Supabase Auth and link between the existing flows', () => {
+  const signup=fs.readFileSync(path.join(root,'app/signup/page.tsx'),'utf8');
+  const login=fs.readFileSync(path.join(root,'app/login/page.tsx'),'utf8');
+  assert.match(signup,/auth\.signUp/);
+  assert.match(signup,/href="\/login"/);
+  assert.match(signup,/email confirmation is enabled/i);
+  assert.match(signup,/role="status"/);
+  assert.match(login,/auth\.signInWithPassword/);
+  assert.match(login,/href="\/signup"/);
+  assert.match(login,/email not confirmed/i);
+  assert.match(login,/role="alert"/);
+});
+
 test('farmer homepage section uses the local photo and existing farmer signup flow', () => {
   const page=fs.readFileSync(path.join(root,'app/page.tsx'),'utf8');
   const signup=fs.readFileSync(path.join(root,'app/signup/page.tsx'),'utf8');

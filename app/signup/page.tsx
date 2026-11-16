@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Signup() {
@@ -10,6 +11,7 @@ export default function Signup() {
   const [role, setRole] = useState("farmer");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const requestedRole = new URLSearchParams(window.location.search).get(
@@ -29,15 +31,32 @@ export default function Signup() {
 
   async function register(event: React.FormEvent) {
     event.preventDefault();
-    const { error } = await createClient().auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name, phone, role } },
-    });
-    setMessage(
-      error?.message ||
-        "Account created. Check your email if confirmation is enabled.",
-    );
+    setMessage("");
+    setSubmitting(true);
+
+    try {
+      const { error } = await createClient().auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { full_name: name, phone: phone.trim(), role } },
+      });
+
+      if (error) {
+        setMessage(error.message);
+      } else {
+        setMessage(
+          "Account created. If email confirmation is enabled, confirm your address before signing in. Check your inbox and spam folder.",
+        );
+      }
+    } catch (registrationError) {
+      setMessage(
+        registrationError instanceof Error
+          ? registrationError.message
+          : "Unable to contact the registration service. Check your connection and try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -48,6 +67,7 @@ export default function Signup() {
           <input
             className="field"
             placeholder="Full name / representative"
+            autoComplete="name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
@@ -56,6 +76,7 @@ export default function Signup() {
             className="field"
             placeholder="Email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
@@ -63,6 +84,7 @@ export default function Signup() {
           <input
             className="field"
             placeholder="Phone"
+            autoComplete="tel"
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
           />
@@ -82,13 +104,19 @@ export default function Signup() {
             type="password"
             minLength={8}
             placeholder="Password (8+ characters)"
+            autoComplete="new-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
           />
-          <button className="btn">Register</button>
-          {message}
+          <button className="btn" type="submit" disabled={submitting}>
+            {submitting ? "Registering..." : "Register"}
+          </button>
+          {message && <p role="status">{message}</p>}
         </form>
+        <p>
+          Already have an account? <Link href="/login">Sign in</Link>
+        </p>
       </div>
     </main>
   );
